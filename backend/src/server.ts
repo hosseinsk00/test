@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import truckRoutes from './routes/truck.routes';
 import driverRoutes from './routes/driver.routes';
+import breakdownRoutes from './routes/breakdown.routes';
+import serviceRoutes from './routes/service.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Load environment variables
@@ -30,6 +32,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/trucks', truckRoutes);
 app.use('/api/drivers', driverRoutes);
+app.use('/api/breakdowns', breakdownRoutes);
+app.use('/api/services', serviceRoutes);
 
 // 404 Handler
 app.use((req, res) => {
