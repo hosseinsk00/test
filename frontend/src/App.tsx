@@ -8,6 +8,8 @@ import { ToastContainer } from 'react-toastify';
 import theme from './config/theme';
 import store from './store';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Trucks from './pages/Trucks';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Create React Query client
@@ -40,10 +42,15 @@ const App: React.FC = () => {
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <Box sx={{ p: 3 }}>
-                        <h1>داشبورد - در حال توسعه</h1>
-                        <p>Frontend راه‌اندازی شد و آماده توسعه است</p>
-                      </Box>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/trucks"
+                  element={
+                    <ProtectedRoute>
+                      <Trucks />
                     </ProtectedRoute>
                   }
                 />
