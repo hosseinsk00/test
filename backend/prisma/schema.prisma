@@ -1,0 +1,552 @@
+// Prisma Schema for Truck Fleet Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  SUPER_ADMIN
+  FLEET_MANAGER
+  MAINTENANCE
+  NETWORK_EXPERT
+  DRIVER
+}
+
+enum TruckStatus {
+  ACTIVE
+  IN_REPAIR
+  OUT_OF_SERVICE
+}
+
+enum BreakdownSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum BreakdownStatus {
+  REPORTED
+  PENDING
+  IN_PROGRESS
+  WAITING_PARTS
+  FIXED
+  REJECTED
+}
+
+enum RepairType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum LocationType {
+  ON_ROAD
+  IN_PARKING
+}
+
+enum ScheduleType {
+  DATE_ONLY
+  DATE_AND_KM
+  KM_ONLY
+}
+
+enum ServiceStatus {
+  SCHEDULED
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum InspectionFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+enum RefillType {
+  FUEL_CARD
+  TRANSFER
+}
+
+enum NotificationType {
+  SERVICE_DUE_30
+  SERVICE_DUE_15
+  SERVICE_DUE_7
+  SERVICE_OVERDUE
+  INSPECTION_WEEKLY_DUE
+  INSPECTION_MONTHLY_DUE
+  INSPECTION_OVERDUE
+  BREAKDOWN_CRITICAL
+  BREAKDOWN_DELAYED
+  FUEL_ABNORMAL
+  FUEL_CARD_LOW
+  TRUCK_OUT_OF_SERVICE
+  LICENSE_EXPIRING
+}
+
+enum NotificationSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  INFO
+}
+
+enum MessageType {
+  USER
+  ASSISTANT
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique @db.VarChar(50)
+  passwordHash String    @db.VarChar(255)
+  fullName     String    @db.VarChar(100)
+  nationalId   String?   @unique @db.VarChar(10)
+  phone        String    @db.VarChar(11)
+  role         UserRole
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLogin    DateTime?
+  createdById  Int?
+
+  // Self-relation for user creation tracking
+  createdBy    User? @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers User[] @relation("UserCreator")
+
+  // Relations
+  reportedBreakdowns      Breakdown[]             @relation("ReportedBy")
+  assignedBreakdowns      Breakdown[]             @relation("AssignedTo")
+  performedServices       Service[]               @relation("PerformedBy")
+  inspections             Inspection[]            @relation("Inspector")
+  fuelRecords             FuelRecord[]            @relation("RecordedBy")
+  fuelRefills             FuelRefill[]            @relation("RefillRecordedBy")
+  fuelCardCharges         FuelCardCharge[]        @relation("ChargedBy")
+  aiChatHistory           AIChatHistory[]
+  notifications           Notification[]          @relation("NotificationRecipient")
+  activityLogs            ActivityLog[]
+  assignments             TruckDriverAssignment[] @relation("AssignedBy")
+  systemSettingUpdates    SystemSetting[]         @relation("SettingUpdatedBy")
+  createdTrucks           Truck[]                 @relation("TruckCreatedBy")
+  createdDrivers          Driver[]                @relation("DriverCreatedBy")
+  refreshTokens           RefreshToken[]
+
+  @@index([role])
+  @@index([nationalId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(500)
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model Truck {
+  id                      Int        @id @default(autoincrement())
+  plateNumber             String     @unique @db.VarChar(20)
+  model                   String     @db.VarChar(50)
+  manufactureYear         Int
+  chassisNumber           String     @unique @db.VarChar(50)
+  engineNumber            String     @unique @db.VarChar(50)
+  tankType                String?    @db.VarChar(50)
+  tankManufactureYear     Int?
+  tankPlateNumber         String?    @db.VarChar(20)
+  startWorkDate           DateTime   @db.Date
+  status                  TruckStatus @default(ACTIVE)
+  fuelConsumptionStandard Decimal    @default(0.60) @db.Decimal(4, 2)
+  currentDriverId         Int?
+  qrCode                  String?    @db.VarChar(255)
+  image                   String?    @db.VarChar(255)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  deletedAt               DateTime?
+  createdById             Int?
+
+  // Relations
+  currentDriver Driver?                 @relation("CurrentDriver", fields: [currentDriverId], references: [id])
+  createdBy     User?                   @relation("TruckCreatedBy", fields: [createdById], references: [id])
+  breakdowns    Breakdown[]
+  services      Service[]
+  inspections   Inspection[]
+  fuelRecords   FuelRecord[]
+  fuelRefills   FuelRefill[]
+  assignments   TruckDriverAssignment[]
+  sourceTruckRefills FuelRefill[] @relation("SourceTruck")
+
+  @@index([plateNumber])
+  @@index([status])
+  @@index([currentDriverId])
+  @@map("trucks")
+}
+
+model Driver {
+  id                  Int       @id @default(autoincrement())
+  fullName            String    @db.VarChar(100)
+  nationalId          String    @unique @db.VarChar(10)
+  phone               String    @db.VarChar(11)
+  address             String?   @db.Text
+  licenseNumber       String    @unique @db.VarChar(50)
+  licenseType         String    @db.VarChar(20)
+  licenseExpiryDate   DateTime  @db.Date
+  driverScore         Decimal   @default(100.00) @db.Decimal(5, 2)
+  fuelEfficiencyScore Decimal?  @db.Decimal(5, 2)
+  accidentCount       Int       @default(0)
+  violationCount      Int       @default(0)
+  workStartDate       DateTime  @db.Date
+  isActive            Boolean   @default(true)
+  userId              Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  createdById         Int?
+
+  // Relations
+  user              User?                   @relation("DriverCreatedBy", fields: [createdById], references: [id])
+  createdBy         User?                   @relation("DriverCreatedBy", fields: [createdById], references: [id])
+  currentTrucks     Truck[]                 @relation("CurrentDriver")
+  assignments       TruckDriverAssignment[]
+  fuelRefills       FuelRefill[]
+
+  @@index([nationalId])
+  @@index([driverScore])
+  @@map("drivers")
+}
+
+model TruckDriverAssignment {
+  id             Int       @id @default(autoincrement())
+  truckId        Int
+  driverId       Int
+  assignedDate   DateTime  @db.Date
+  unassignedDate DateTime? @db.Date
+  reason         String?   @db.Text
+  assignedById   Int?
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  truck      Truck  @relation(fields: [truckId], references: [id])
+  driver     Driver @relation(fields: [driverId], references: [id])
+  assignedBy User?  @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@index([truckId])
+  @@index([driverId])
+  @@index([assignedDate])
+  @@map("truck_driver_assignments")
+}
+
+model Breakdown {
+  id                     Int                @id @default(autoincrement())
+  truckId                Int
+  reportedById           Int
+  breakdownType          String             @db.VarChar(50)
+  severity               BreakdownSeverity
+  description            String             @db.Text
+  locationType           LocationType
+  locationAddress        String?            @db.Text
+  occurredDate           DateTime           @db.Date
+  occurredKilometer      Int
+  repairType             RepairType
+  repairLocation         String?            @db.VarChar(200)
+  estimatedCompletionDate DateTime?         @db.Date
+  actualCompletionDate   DateTime?          @db.Date
+  status                 BreakdownStatus    @default(REPORTED)
+  repairCost             Decimal?           @db.Decimal(12, 2)
+  usedParts              Json?
+  mechanicName           String?            @db.VarChar(100)
+  repairStartDate        DateTime?          @db.Date
+  repairEndDate          DateTime?          @db.Date
+  images                 String[]
+  documents              String[]
+  assignedToId           Int?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  closedAt               DateTime?
+
+  // Relations
+  truck      Truck @relation(fields: [truckId], references: [id])
+  reportedBy User  @relation("ReportedBy", fields: [reportedById], references: [id])
+  assignedTo User? @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  @@index([truckId])
+  @@index([status])
+  @@index([occurredDate])
+  @@index([severity])
+  @@map("breakdowns")
+}
+
+model ServiceType {
+  id                Int          @id @default(autoincrement())
+  name              String       @unique @db.VarChar(100)
+  nameEn            String?      @db.VarChar(100)
+  description       String?      @db.Text
+  scheduleType      ScheduleType
+  intervalDays      Int?
+  intervalKilometers Int?
+  alertDaysBefore   Int          @default(7)
+  alertKmBefore     Int          @default(500)
+  checklist         Json?
+  isActive          Boolean      @default(true)
+  displayOrder      Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  services Service[]
+
+  @@map("service_types")
+}
+
+model Service {
+  id                  Int           @id @default(autoincrement())
+  truckId             Int
+  serviceTypeId       Int
+  scheduledDate       DateTime?     @db.Date
+  scheduledKilometer  Int?
+  performedDate       DateTime?     @db.Date
+  performedKilometer  Int?
+  performedById       Int?
+  status              ServiceStatus @default(SCHEDULED)
+  delayReason         String?       @db.Text
+  checklistResult     Json?
+  notes               String?       @db.Text
+  cost                Decimal?      @db.Decimal(12, 2)
+  documents           String[]
+  nextServiceDate     DateTime?     @db.Date
+  nextServiceKm       Int?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  truck        Truck       @relation(fields: [truckId], references: [id])
+  serviceType  ServiceType @relation(fields: [serviceTypeId], references: [id])
+  performedBy  User?       @relation("PerformedBy", fields: [performedById], references: [id])
+
+  @@index([truckId])
+  @@index([serviceTypeId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("services")
+}
+
+model InspectionType {
+  id           Int                  @id @default(autoincrement())
+  name         String               @unique @db.VarChar(100)
+  frequency    InspectionFrequency
+  checklist    Json
+  maxScore     Int                  @default(100)
+  passingScore Int                  @default(70)
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  // Relations
+  inspections Inspection[]
+
+  @@map("inspection_types")
+}
+
+model Inspection {
+  id                 Int      @id @default(autoincrement())
+  truckId            Int
+  inspectionTypeId   Int
+  inspectionDate     DateTime @db.Date
+  inspectorId        Int
+  checklistResult    Json
+  totalScore         Decimal  @db.Decimal(5, 2)
+  isPassed           Boolean
+  correctiveActions  Json?
+  notes              String?  @db.Text
+  images             String[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  truck          Truck          @relation(fields: [truckId], references: [id])
+  inspectionType InspectionType @relation(fields: [inspectionTypeId], references: [id])
+  inspector      User           @relation("Inspector", fields: [inspectorId], references: [id])
+
+  @@index([truckId])
+  @@index([inspectionDate])
+  @@index([inspectionTypeId])
+  @@map("inspections")
+}
+
+model FuelRecord {
+  id                      Int      @id @default(autoincrement())
+  truckId                 Int
+  recordDate              DateTime @unique @db.Date
+  tankBalance             Decimal  @db.Decimal(6, 2)
+  odometer                Int
+  fuelConsumed            Decimal? @db.Decimal(6, 2)
+  kmTraveled              Int?
+  actualConsumptionPerKm  Decimal? @db.Decimal(4, 3)
+  standardConsumption     Decimal? @db.Decimal(6, 2)
+  consumptionDifference   Decimal? @db.Decimal(6, 2)
+  isAbnormal              Boolean  @default(false)
+  recordedById            Int
+  createdAt               DateTime @default(now())
+
+  // Relations
+  truck      Truck @relation(fields: [truckId], references: [id])
+  recordedBy User  @relation("RecordedBy", fields: [recordedById], references: [id])
+
+  @@unique([truckId, recordDate])
+  @@index([truckId, recordDate])
+  @@map("fuel_records")
+}
+
+model FuelRefill {
+  id              Int        @id @default(autoincrement())
+  truckId         Int
+  driverId        Int
+  refillDate      DateTime   @db.Date
+  refillTime      DateTime   @db.Time
+  refillType      RefillType
+  amount          Decimal    @db.Decimal(6, 2)
+  location        String     @db.VarChar(200)
+  sourceTruckId   Int?
+  sourceAmount    Decimal?   @db.Decimal(6, 2)
+  receiptImage    String?    @db.VarChar(255)
+  recordedById    Int
+  createdAt       DateTime   @default(now())
+
+  // Relations
+  truck        Truck   @relation(fields: [truckId], references: [id])
+  driver       Driver  @relation(fields: [driverId], references: [id])
+  sourceTruck  Truck?  @relation("SourceTruck", fields: [sourceTruckId], references: [id])
+  recordedBy   User    @relation("RefillRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([truckId])
+  @@index([refillDate])
+  @@index([refillType])
+  @@map("fuel_refills")
+}
+
+model FuelCard {
+  id               Int      @id @default(autoincrement())
+  cardNumber       String   @unique @db.VarChar(50)
+  currentBalance   Decimal  @default(0) @db.Decimal(12, 2)
+  lastChargeDate   DateTime? @db.Date
+  lastChargeAmount Decimal? @db.Decimal(12, 2)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  charges FuelCardCharge[]
+
+  @@map("fuel_card")
+}
+
+model FuelCardCharge {
+  id         Int      @id @default(autoincrement())
+  fuelCardId Int
+  chargeDate DateTime @db.Date
+  amount     Decimal  @db.Decimal(12, 2)
+  chargedById Int
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  // Relations
+  fuelCard  FuelCard @relation(fields: [fuelCardId], references: [id])
+  chargedBy User     @relation("ChargedBy", fields: [chargedById], references: [id])
+
+  @@index([fuelCardId])
+  @@map("fuel_card_charges")
+}
+
+model AIChatHistory {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  sessionId     String      @db.VarChar(100)
+  messageType   MessageType
+  messageText   String      @db.Text
+  tokensUsed    Int?
+  responseTimeMs Int?
+  retrievedData Json?
+  createdAt     DateTime    @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, sessionId])
+  @@index([createdAt])
+  @@map("ai_chat_history")
+}
+
+model Notification {
+  id               Int                  @id @default(autoincrement())
+  notificationType NotificationType
+  relatedEntity    String?              @db.VarChar(50)
+  relatedId        Int?
+  title            String               @db.VarChar(200)
+  message          String               @db.Text
+  severity         NotificationSeverity @default(INFO)
+  sendInApp        Boolean              @default(true)
+  sendWhatsapp     Boolean              @default(false)
+  isSent           Boolean              @default(false)
+  sentAt           DateTime?
+  isRead           Boolean              @default(false)
+  readAt           DateTime?
+  recipientUserId  Int?
+  createdAt        DateTime             @default(now())
+
+  // Relations
+  recipient User? @relation("NotificationRecipient", fields: [recipientUserId], references: [id])
+
+  @@index([recipientUserId])
+  @@index([notificationType])
+  @@index([isSent])
+  @@map("notifications")
+}
+
+model SystemSetting {
+  id           Int      @id @default(autoincrement())
+  settingKey   String   @unique @db.VarChar(100)
+  settingValue String   @db.Text
+  settingType  String   @db.VarChar(20)
+  description  String?  @db.Text
+  isPublic     Boolean  @default(false)
+  updatedById  Int?
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  updatedBy User? @relation("SettingUpdatedBy", fields: [updatedById], references: [id])
+
+  @@map("system_settings")
+}
+
+model ActivityLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   @db.VarChar(100)
+  entity     String   @db.VarChar(50)
+  entityId   Int?
+  changes    Json?
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
