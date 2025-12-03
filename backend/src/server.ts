@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
+import truckRoutes from './routes/truck.routes';
+import driverRoutes from './routes/driver.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 // Load environment variables
@@ -26,6 +28,8 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/trucks', truckRoutes);
+app.use('/api/drivers', driverRoutes);
 
 // 404 Handler
 app.use((req, res) => {
