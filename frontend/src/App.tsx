@@ -10,6 +10,13 @@ import store from './store';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Trucks from './pages/Trucks';
+import Drivers from './pages/Drivers';
+import Breakdowns from './pages/Breakdowns';
+import Services from './pages/Services';
+import Inspections from './pages/Inspections';
+import Fuel from './pages/Fuel';
+import Notifications from './pages/Notifications';
+import Chatbot from './pages/Chatbot';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Create React Query client
@@ -51,6 +58,62 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Trucks />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/drivers"
+                  element={
+                    <ProtectedRoute>
+                      <Drivers />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/breakdowns"
+                  element={
+                    <ProtectedRoute>
+                      <Breakdowns />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/services"
+                  element={
+                    <ProtectedRoute>
+                      <Services />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inspections"
+                  element={
+                    <ProtectedRoute>
+                      <Inspections />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/fuel"
+                  element={
+                    <ProtectedRoute>
+                      <Fuel />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/notifications"
+                  element={
+                    <ProtectedRoute>
+                      <Notifications />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chatbot"
+                  element={
+                    <ProtectedRoute>
+                      <Chatbot />
                     </ProtectedRoute>
                   }
                 />
