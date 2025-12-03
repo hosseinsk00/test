@@ -10,6 +10,7 @@ import inspectionRoutes from './routes/inspection.routes';
 import fuelRoutes from './routes/fuel.routes';
 import notificationRoutes from './routes/notification.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import chatbotRoutes from './routes/chatbot.routes';
 import { errorHandler } from './middlewares/errorHandler';
 import cronService from './services/cron.service';
 
@@ -43,6 +44,7 @@ app.use('/api/inspections', inspectionRoutes);
 app.use('/api/fuel', fuelRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // 404 Handler
 app.use((req, res) => {
