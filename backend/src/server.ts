@@ -6,7 +6,12 @@ import truckRoutes from './routes/truck.routes';
 import driverRoutes from './routes/driver.routes';
 import breakdownRoutes from './routes/breakdown.routes';
 import serviceRoutes from './routes/service.routes';
+import inspectionRoutes from './routes/inspection.routes';
+import fuelRoutes from './routes/fuel.routes';
+import notificationRoutes from './routes/notification.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 import { errorHandler } from './middlewares/errorHandler';
+import cronService from './services/cron.service';
 
 // Load environment variables
 dotenv.config();
@@ -34,6 +39,10 @@ app.use('/api/trucks', truckRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/breakdowns', breakdownRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/inspections', inspectionRoutes);
+app.use('/api/fuel', fuelRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -51,6 +60,9 @@ app.listen(PORT, () => {
   console.log(`\n🚀 سرور در حال اجرا است`);
   console.log(`📍 آدرس: http://localhost:${PORT}`);
   console.log(`🌍 محیط: ${process.env.NODE_ENV || 'development'}\n`);
+
+  // شروع Cron Jobs
+  cronService.startAllJobs();
 });
 
 export default app;
